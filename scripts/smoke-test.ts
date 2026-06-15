@@ -20,6 +20,7 @@ import path from "node:path"
 import fs from "node:fs"
 import os from "node:os"
 import { loadClaudePlugin } from "../src/parsers/claude"
+import { parseFrontmatter } from "../src/utils/frontmatter"
 
 const repoRoot = path.resolve(import.meta.dir, "..")
 const samplePath = path.join(repoRoot, "samples", "skills")
@@ -113,5 +114,167 @@ if (converted.target === "opencode") {
   )
 }
 
-info(`✓ SMOKE TEST PASSED — ingestion (${parsedSkillCount} skills) + ${converted.target} conversion green`)
+// ---- Path (c): Hermes target — structural + mapping assertions (VHS-20) ----
+// Additive to paths (a)/(b): proves the engine emits a structurally correct,
+// mapping-correct Hermes package after the change. All structural assertions
+// parse the emitted SKILL.md and assert on PARSED values, never raw frontmatter
+// lines (js-yaml `dump` may reflow scalars). CI has no live Hermes, so this is
+// the automated (Tier-1) gate; live install/load is the manual Tier-2 proof.
+const HERMES_SENTINEL = "<!-- vigil-converter:hermes-preflight v1 -->"
+
+function parseSkillFile(file: string): { data: Record<string, unknown>; body: string } {
+  return parseFrontmatter(fs.readFileSync(file, "utf8"), file)
+}
+function hermesMeta(data: Record<string, unknown>): Record<string, unknown> {
+  const meta = (data.metadata as Record<string, unknown> | undefined)?.hermes
+  return meta && typeof meta === "object" ? (meta as Record<string, unknown>) : {}
+}
+
+const hermesHome = fs.mkdtempSync(path.join(os.tmpdir(), "vigil-smoke-hermes-"))
+const robustRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vigil-smoke-hermes-robust-"))
+try {
+  info(`[c] Converting sample -> hermes (home: ${hermesHome})`)
+  const proc = Bun.spawnSync(
+    ["bun", "run", "src/index.ts", "convert", samplePath, "--to", "hermes", "--hermes-home", hermesHome],
+    { cwd: repoRoot, stdout: "pipe", stderr: "pipe" },
+  )
+  if (proc.exitCode !== 0) {
+    fail(`hermes conversion exited ${proc.exitCode}: ${proc.stderr.toString().trim().split("\n").pop() ?? ""}`)
+  }
+  const hermesSkillsDir = path.join(hermesHome, "skills")
+  const sourcePlugin = await loadClaudePlugin(samplePath)
+  const sourceByName = new Map(sourcePlugin.skills.map((s) => [s.name, s]))
+
+  // (1) Package shape — every parsed skill has a non-empty emitted SKILL.md.
+  for (const skill of sourcePlugin.skills) {
+    const file = path.join(hermesSkillsDir, skill.name, "SKILL.md")
+    if (!fs.existsSync(file) || fs.statSync(file).size === 0) {
+      fail(`hermes: expected non-empty ${file} for skill "${skill.name}"`)
+    }
+  }
+  info(`[c] OK — ${sourcePlugin.skills.length} Hermes package(s) emitted`)
+
+  // (2) No-`requires` case (hello-world) — name+desc, no gating keys, no sentinel.
+  const hw = parseSkillFile(path.join(hermesSkillsDir, "hello-world", "SKILL.md"))
+  if (!hw.data.name || !hw.data.description) fail("hermes hello-world: missing name/description")
+  const hwMeta = hermesMeta(hw.data)
+  if (hwMeta.requires_toolsets || hwMeta.requires_tools || hwMeta.required_environment_variables) {
+    fail("hermes hello-world: expected no gating keys for a no-`requires` skill")
+  }
+  if (hw.body.includes(HERMES_SENTINEL)) fail("hermes hello-world: unexpected pre-flight sentinel")
+  info("[c] OK — hello-world ungated (no gating keys, no pre-flight)")
+
+  // (3)+(5)+(6) Full-mapping case (capability-demo).
+  const cd = parseSkillFile(path.join(hermesSkillsDir, "capability-demo", "SKILL.md"))
+  // (6) Nested block well-formed — `metadata.hermes` is a real mapping, not the
+  //     string "[object Object]" (guards the D7 `dump` requirement).
+  if (typeof (cd.data.metadata as Record<string, unknown> | undefined)?.hermes !== "object") {
+    fail("hermes capability-demo: metadata.hermes is not a nested mapping (D7 `dump` regression)")
+  }
+  const cdMeta = hermesMeta(cd.data)
+  const toolsets = (cdMeta.requires_toolsets as string[]) ?? []
+  const tools = (cdMeta.requires_tools as string[]) ?? []
+  if (!toolsets.includes("terminal")) {
+    fail("hermes capability-demo: requires_toolsets missing 'terminal' (from `shell`)")
+  }
+  // Required service issue-tracker is gated (provisional name) AND has an env-var
+  // entry — asserted structurally, never by exact var name (D9).
+  if (!tools.includes("issue-tracker") && !toolsets.includes("issue-tracker")) {
+    fail("hermes capability-demo: required 'issue-tracker' not gated in requires_tools/requires_toolsets")
+  }
+  // required_environment_variables is TOP-LEVEL frontmatter (D9 — confirmed
+  // against the live harness), a sibling of metadata, not nested under hermes.
+  const envVars = (cd.data.required_environment_variables as Record<string, unknown>[]) ?? []
+  if (envVars.length < 1) {
+    fail("hermes capability-demo: expected a top-level required_environment_variables entry for issue-tracker")
+  }
+  if ("required_environment_variables" in cdMeta) {
+    fail("hermes capability-demo: required_environment_variables must be top-level, not under metadata.hermes (D9)")
+  }
+  for (const entry of envVars) {
+    for (const key of ["name", "prompt", "help", "required_for"]) {
+      if (!(key in entry)) fail(`hermes capability-demo: required_environment_variables entry missing '${key}'`)
+    }
+  }
+  // Pre-flight sentinel + the full required-capability enumeration the D3 template
+  // emits (shell/terminal included).
+  if (!cd.body.includes(HERMES_SENTINEL)) fail("hermes capability-demo: missing pre-flight sentinel")
+  for (const cap of ["terminal", "shell", "network", "subagents", "filesystem", "issue-tracker"]) {
+    if (!cd.body.includes(cap)) fail(`hermes capability-demo: pre-flight does not name required capability '${cap}'`)
+  }
+  // (5) Description preserved verbatim (by value) — re-parsed value byte-equals
+  //     source. The fixture description contains a colon to exercise reflow.
+  const srcDesc = sourceByName.get("capability-demo")?.description
+  if (cd.data.description !== srcDesc) {
+    fail(`hermes capability-demo: description not preserved verbatim\n  source:  ${srcDesc}\n  emitted: ${cd.data.description}`)
+  }
+  info("[c] OK — capability-demo: full mapping + env-var shape + pre-flight + verbatim description")
+
+  // (4) Optional service is NOT gated — `shared-memory?` appears in no
+  //     requires_*/fallback_* key; only as a pre-flight advisory line (D4).
+  const gatedValues = [
+    ...toolsets,
+    ...tools,
+    ...((cdMeta.fallback_for_toolsets as string[]) ?? []),
+    ...((cdMeta.fallback_for_tools as string[]) ?? []),
+  ].map(String)
+  if (gatedValues.includes("memory") || gatedValues.some((v) => v.includes("shared-memory"))) {
+    fail("hermes capability-demo: optional 'shared-memory?' must not appear in any requires_*/fallback_* key (D4)")
+  }
+  if (!cd.body.includes("shared-memory")) {
+    fail("hermes capability-demo: optional 'shared-memory' should appear as a pre-flight advisory line (D4)")
+  }
+  info("[c] OK — optional shared-memory ungated (advisory-only)")
+
+  // (7) Robustness — a well-formed unrecognized `requires` key (legacy `tools:`)
+  //     and a well-formed out-of-vocab service token do not abort the run and
+  //     emit ungated-with-warning. (Malformed YAML is expected to fail loudly
+  //     upstream — not asserted here; see Design § malformed YAML.)
+  const robustSrc = path.join(robustRoot, "skills-src")
+  const robustSkillDir = path.join(robustSrc, "robust-skill")
+  fs.mkdirSync(robustSkillDir, { recursive: true })
+  fs.writeFileSync(
+    path.join(robustSkillDir, "SKILL.md"),
+    [
+      "---",
+      "name: robust-skill",
+      "description: Robustness fixture with a legacy key and an out-of-vocab service token.",
+      "requires:",
+      "  tools: [bash]                 # unrecognized §3 key — ignored with a warning",
+      "  services: [nonexistent-role]  # well-formed out-of-vocab token — ungated with a warning",
+      "---",
+      "",
+      "# Robust skill",
+      "",
+      "Body.",
+      "",
+    ].join("\n"),
+    "utf8",
+  )
+  const robustHome = path.join(robustRoot, "home")
+  const robustProc = Bun.spawnSync(
+    ["bun", "run", "src/index.ts", "convert", robustSrc, "--to", "hermes", "--hermes-home", robustHome],
+    { cwd: repoRoot, stdout: "pipe", stderr: "pipe" },
+  )
+  if (robustProc.exitCode !== 0) {
+    fail(`hermes robustness: run aborted on well-formed-but-non-conformant input (exit ${robustProc.exitCode})`)
+  }
+  const robustFile = path.join(robustHome, "skills", "robust-skill", "SKILL.md")
+  if (!fs.existsSync(robustFile)) fail("hermes robustness: expected an emitted (ungated) package")
+  const rb = parseSkillFile(robustFile)
+  const rbMeta = hermesMeta(rb.data)
+  if (rbMeta.requires_toolsets || rbMeta.requires_tools || rbMeta.required_environment_variables) {
+    fail("hermes robustness: expected ungated output (no gating keys) for unrecognized/out-of-vocab input")
+  }
+  if (rb.body.includes(HERMES_SENTINEL)) fail("hermes robustness: unexpected pre-flight (no required capability declared)")
+  info("[c] OK — robust to unrecognized key + out-of-vocab service (ungated, no abort)")
+} finally {
+  // (8) Temp-dir hygiene — created with mkdtemp, removed in finally.
+  fs.rmSync(hermesHome, { recursive: true, force: true })
+  fs.rmSync(robustRoot, { recursive: true, force: true })
+}
+
+info(
+  `✓ SMOKE TEST PASSED — ingestion (${parsedSkillCount} skills) + ${converted.target} conversion + hermes target green`,
+)
 process.exit(0)

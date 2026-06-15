@@ -5,7 +5,7 @@ import { loadClaudePlugin } from "../parsers/claude"
 import { targets, validateScope } from "../targets"
 import type { ClaudeToOpenCodeOptions, PermissionMode } from "../converters/claude-to-opencode"
 import { ensureCodexAgentsFile } from "../utils/codex-agents"
-import { expandHome, resolveCodexHome, resolveTargetHome } from "../utils/resolve-home"
+import { expandHome, resolveCodexHome, resolveHermesHome, resolveTargetHome } from "../utils/resolve-home"
 import { resolveOpenCodeWriteScope, resolveTargetOutputRoot } from "../utils/resolve-output"
 import { detectInstalledTools } from "../utils/detect-tools"
 
@@ -25,7 +25,7 @@ export default defineCommand({
     to: {
       type: "string",
       default: "opencode",
-      description: "Target format (opencode | codex | pi | gemini | kiro | all)",
+      description: "Target format (opencode | codex | pi | gemini | kiro | hermes | all)",
     },
     output: {
       type: "string",
@@ -41,6 +41,11 @@ export default defineCommand({
       type: "string",
       alias: "pi-home",
       description: "Write Pi output to this Pi root (ex: ~/.pi/agent or ./.pi)",
+    },
+    hermesHome: {
+      type: "string",
+      alias: "hermes-home",
+      description: "Write Hermes output to this Hermes home (default: $HERMES_HOME or ~/.hermes)",
     },
     scope: {
       type: "string",
@@ -85,6 +90,7 @@ export default defineCommand({
     const hasExplicitOutput = Boolean(args.output && String(args.output).trim())
     const codexHome = resolveCodexHome(args.codexHome)
     const piHome = resolveTargetHome(args.piHome, path.join(os.homedir(), ".pi", "agent"))
+    const hermesHome = resolveHermesHome(args.hermesHome)
 
     const options: ClaudeToOpenCodeOptions = {
       agentMode: String(args.agentMode) === "primary" ? "primary" : "subagent",
@@ -127,6 +133,7 @@ export default defineCommand({
           outputRoot,
           codexHome,
           piHome,
+          hermesHome,
           pluginName: plugin.manifest.name,
           hasExplicitOutput,
         })
@@ -158,6 +165,7 @@ export default defineCommand({
       outputRoot,
       codexHome,
       piHome,
+      hermesHome,
       pluginName: plugin.manifest.name,
       hasExplicitOutput,
       scope: resolvedScope,
@@ -194,6 +202,7 @@ export default defineCommand({
         outputRoot,
         codexHome,
         piHome,
+        hermesHome,
         pluginName: plugin.manifest.name,
         hasExplicitOutput,
         scope: handler.defaultScope,

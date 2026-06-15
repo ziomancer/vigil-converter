@@ -9,7 +9,8 @@ from a single canonical source.
   `.claude-plugin/plugin.json`) or a bare skills root such as `~/.claude/skills/`
   (`<root>/<skill>/SKILL.md`), no manifest required.
 - **Output:** per-harness packages for the inherited targets (OpenCode, Codex,
-  Gemini, Pi, Kiro).
+  Gemini, Pi, Kiro) plus the owned **Hermes** target (the one target CE never
+  shipped — see [`HERMES-MAPPING.md`](HERMES-MAPPING.md)).
 
 This is the conversion engine that per-harness adapters build on. It is **not** an
 adapter and **not** a conformance/parity test.
@@ -25,6 +26,9 @@ bun run src/index.ts convert ~/.claude/skills --to opencode --output ./out
 # Other inherited targets
 bun run src/index.ts convert <skills-root> --to codex   --output ./out
 bun run src/index.ts convert <skills-root> --to gemini  --output ./out
+
+# Owned Hermes target (HERMES_HOME-resolved; --hermes-home overrides)
+bun run src/index.ts convert <skills-root> --to hermes  --hermes-home ~/.hermes
 ```
 
 The input path is an explicit argument — no home directory is hardcoded, so the

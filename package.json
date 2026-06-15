@@ -1,7 +1,7 @@
 {
   "name": "vigil-converter",
   "version": "0.1.0",
-  "description": "Convert Claude Code skills and plugins into other agent harness formats (OpenCode, Codex, Gemini, Pi, Kiro). A security-vetted fork of EveryInc/compound-engineering-plugin's converter engine.",
+  "description": "Convert Claude Code skills and plugins into other agent harness formats (OpenCode, Codex, Gemini, Pi, Kiro, Hermes). A security-vetted fork of EveryInc/compound-engineering-plugin's converter engine.",
   "type": "module",
   "private": false,
   "license": "MIT",
