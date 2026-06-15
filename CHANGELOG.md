@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.13.0](https://github.com/ziomancer/vigil-converter/compare/cli-v3.12.0...cli-v3.13.0) (2026-06-15)
+
+
+### Features
+
+* **ce-code-review:** add thematic triage grouping ([#845](https://github.com/ziomancer/vigil-converter/issues/845)) ([8092abe](https://github.com/ziomancer/vigil-converter/commit/8092abead5ab04355f55fb5ccddedfffd28c8901))
+* **ce-ideate:** improve for Fable model ([#924](https://github.com/ziomancer/vigil-converter/issues/924)) ([622fbfa](https://github.com/ziomancer/vigil-converter/commit/622fbfa60de346101e3177af243c79430b189a42))
+* **ce-plan,ce-brainstorm:** contract-driven sections + optional HTML output ([#826](https://github.com/ziomancer/vigil-converter/issues/826)) ([11e12e5](https://github.com/ziomancer/vigil-converter/commit/11e12e5739c6691a2020eb8b70a944587e7f265f))
+* HTML-first ideation docs and a status-free plan model ([#921](https://github.com/ziomancer/vigil-converter/issues/921)) ([e74e298](https://github.com/ziomancer/vigil-converter/commit/e74e29864fbfa2f800fc3e08509e2966e4947f1e))
+* **skill:** introduce CONCEPTS.md as shared vocabulary substrate ([#838](https://github.com/ziomancer/vigil-converter/issues/838)) ([7c4bb16](https://github.com/ziomancer/vigil-converter/commit/7c4bb16123412d97ded593fc785d206ecb9684bc))
+
+
+### Bug Fixes
+
+* **ce-polish:** promote from beta to stable ([#880](https://github.com/ziomancer/vigil-converter/issues/880)) ([63b6b26](https://github.com/ziomancer/vigil-converter/commit/63b6b260c345ba70ce9d9a393eeedefb64e4e0a0))
+* **config-read:** read config via native tool, not $() pre-resolution ([#942](https://github.com/ziomancer/vigil-converter/issues/942)) ([0757e85](https://github.com/ziomancer/vigil-converter/commit/0757e859d21e860a1fc0424bfcbbb35a1e597771))
+* **skills:** enforce content conventions in CI and fix violations ([#930](https://github.com/ziomancer/vigil-converter/issues/930)) ([c8e7d90](https://github.com/ziomancer/vigil-converter/commit/c8e7d908fa7e230dc8723639ea48498e3e499f3c))
+
 ## [3.12.0](https://github.com/EveryInc/compound-engineering-plugin/compare/cli-v3.11.2...cli-v3.12.0) (2026-06-09)
 
 
