@@ -3,22 +3,16 @@ import { defineCommand, runMain } from "citty"
 import packageJson from "../package.json"
 import convert from "./commands/convert"
 import cleanup from "./commands/cleanup"
-import install from "./commands/install"
-import listCommand from "./commands/list"
-import pluginPath from "./commands/plugin-path"
 
 const main = defineCommand({
   meta: {
-    name: "compound-plugin",
+    name: "vigil-converter",
     version: packageJson.version,
-    description: "Convert Claude Code plugins into other agent formats",
+    description: "Convert Claude Code skills/plugins into other agent harness formats",
   },
   subCommands: {
     cleanup: () => cleanup,
     convert: () => convert,
-    install: () => install,
-    list: () => listCommand,
-    "plugin-path": () => pluginPath,
   },
 })
 
