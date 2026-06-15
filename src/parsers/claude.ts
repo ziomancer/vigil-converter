@@ -16,11 +16,23 @@ const PLUGIN_MANIFEST = path.join(".claude-plugin", "plugin.json")
 export async function loadClaudePlugin(inputPath: string): Promise<ClaudePlugin> {
   const root = await resolveClaudeRoot(inputPath)
   const manifestPath = path.join(root, PLUGIN_MANIFEST)
-  const manifest = await readJson<ClaudeManifest>(manifestPath)
+  const hasManifest = await pathExists(manifestPath)
+  const manifest = hasManifest
+    ? await readJson<ClaudeManifest>(manifestPath)
+    : synthesizeDefaultManifest(root)
+
+  // With no plugin manifest, the input path IS the skills root — e.g. a
+  // canonical `~/.claude/skills/` tree where each skill lives at
+  // `<root>/<skill>/SKILL.md`. Scan the root directly. Agents/commands stay
+  // under their conventional `<root>/{agents,commands}` subdirs, which resolve
+  // to empty when absent, so a bare skills root yields skills only.
+  const skillsDirs = hasManifest
+    ? resolveComponentDirs(root, "skills", manifest.skills)
+    : [root]
 
   const agents = await loadAgents(resolveComponentDirs(root, "agents", manifest.agents))
   const commands = await loadCommands(resolveComponentDirs(root, "commands", manifest.commands))
-  const skills = await loadSkills(resolveComponentDirs(root, "skills", manifest.skills))
+  const skills = await loadSkills(skillsDirs)
   const hooks = await loadHooks(root, manifest.hooks)
 
   const mcpServers = await loadMcpServers(root, manifest)
@@ -51,7 +63,18 @@ async function resolveClaudeRoot(inputPath: string): Promise<string> {
     return path.dirname(path.dirname(absolute))
   }
 
-  throw new Error(`Could not find ${PLUGIN_MANIFEST} under ${inputPath}`)
+  // No plugin manifest anywhere: treat the input path itself as the root. This
+  // supports a bare skills tree (the canonical `~/.claude/skills/` layout) with
+  // no `.claude-plugin/plugin.json`. loadClaudePlugin() then synthesizes a
+  // default manifest and scans this root for skills directly.
+  return absolute
+}
+
+function synthesizeDefaultManifest(root: string): ClaudeManifest {
+  return {
+    name: path.basename(root) || "skills",
+    version: "0.0.0",
+  }
 }
 
 async function loadAgents(agentsDirs: string[]): Promise<ClaudeAgent[]> {
