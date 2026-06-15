@@ -2,7 +2,6 @@
 import { defineCommand, runMain } from "citty"
 import packageJson from "../package.json"
 import convert from "./commands/convert"
-import cleanup from "./commands/cleanup"
 
 const main = defineCommand({
   meta: {
@@ -11,7 +10,6 @@ const main = defineCommand({
     description: "Convert Claude Code skills/plugins into other agent harness formats",
   },
   subCommands: {
-    cleanup: () => cleanup,
     convert: () => convert,
   },
 })
