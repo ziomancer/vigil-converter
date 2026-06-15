@@ -9,7 +9,7 @@ Security fixes are applied to the latest version on `main`.
 Please do not open a public issue for undisclosed vulnerabilities.
 
 Instead, report privately by emailing:
-- `kieran@every.to`
+- `support@vigilharbor.com`
 
 Include:
 - A clear description of the issue
@@ -17,13 +17,15 @@ Include:
 - Impact assessment (what an attacker can do)
 - Any suggested mitigation
 
-We will acknowledge receipt as soon as possible and work with you on validation, remediation, and coordinated disclosure timing.
+We will acknowledge receipt as soon as possible and work with you on validation,
+remediation, and coordinated disclosure timing.
 
 ## Scope Notes
 
-This repository primarily contains plugin instructions/configuration plus a conversion/install CLI.
+This repository is a command-line converter that reads Claude Code `SKILL.md`
+sources and emits per-harness packages. It is not a server process.
 
-- Plugin instruction content itself does not run as a server process.
-- Security/privacy behavior also depends on the host AI tool and any external integrations you explicitly invoke.
-
-For data-handling details, see [PRIVACY.md](PRIVACY.md).
+- The conversion process never executes skill content during conversion — see
+  the **Supply chain & security posture** section of [README.md](README.md).
+- Emitted packages are later executed by their target host runtime, not by this
+  converter; their security depends on that host.

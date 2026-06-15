@@ -7,70 +7,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  pr-title:
-    if: github.event_name == 'pull_request'
+  smoke:
+    name: Engine-liveness smoke test
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-
     steps:
-      - name: Validate PR title
-        uses: amannn/action-semantic-pull-request@v6.1.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          requireScope: false
-          types: |
-            feat
-            fix
-            docs
-            refactor
-            chore
-            test
-            ci
-            build
-            perf
-            revert
-
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
-      - name: Install dependencies
-        run: bun install
+      - name: Install dependencies (frozen lockfile)
+        run: bun install --frozen-lockfile
 
-      - name: Validate release metadata
-        run: bun run release:validate
-
-      # Canonical schema check: runs `claude plugin validate` against the
-      # marketplace catalog and each plugin directory (blocking, non-strict).
-      # The CLI must be installed via npm, not bun: `bun x` cannot run this
-      # package (bun blocks its required postinstall and cannot resolve its
-      # `claude` bin name), and `bun run` rewrites `npx` in package.json
-      # scripts to the broken `bun x`, so the script invokes a `claude`
-      # already on PATH instead.
-      #
-      # The validator version is pinned deliberately for reproducible CI: a
-      # floating @latest would track new upstream validation rules
-      # automatically but could break CI without any repo change. Bump the
-      # pin intentionally to adopt new `claude plugin validate` rules (and
-      # revisit --strict below when doing so).
-      #
-      # --strict (warnings-as-errors) should be enabled once this known
-      # warning is fixed:
-      #   plugins/compound-engineering -- 1 warning:
-      #     "root: CLAUDE.md at the plugin root is not loaded as project context. To ship context with your plugin, use a skill (skills/<name>/SKILL.md) instead."
-      - name: Validate plugin schema (claude plugin validate)
-        run: |
-          npm install -g @anthropic-ai/claude-code@2.1.175
-          bun run plugin:validate
-
-      - name: Run tests
-        run: bun test
+      # Two-path engine-liveness smoke test over the pinned sample skill set
+      # (samples/skills): (a) ingest/parse asserting >=1 skill, and (b) convert
+      # end-to-end to OpenCode (Codex fallback), asserting exit 0 + non-empty,
+      # well-formed output. This is the deliverable's acceptance gate (VHS-19 D7).
+      - name: Smoke test (ingest + convert to OpenCode)
+        run: bun run scripts/smoke-test.ts
