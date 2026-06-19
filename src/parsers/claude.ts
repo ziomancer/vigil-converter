@@ -131,12 +131,21 @@ async function loadSkills(skillsDirs: string[]): Promise<ClaudeSkill[]> {
     const name = (data.name as string) ?? path.basename(path.dirname(file))
     const disableModelInvocation = data["disable-model-invocation"] === true ? true : undefined
     const ce_platforms = Array.isArray(data.ce_platforms) ? (data.ce_platforms as string[]) : undefined
+    // Carry the raw `requires:` block harness-neutrally (Decision D2, VHS-20).
+    // `parseFrontmatter` already parsed it into `data`; without this it was
+    // dropped. Only a mapping is stored — a non-mapping `requires:` is left
+    // undefined and the adapter emits ungated (Design § Absent / malformed).
+    const requires =
+      data.requires && typeof data.requires === "object" && !Array.isArray(data.requires)
+        ? (data.requires as Record<string, unknown>)
+        : undefined
     skills.push({
       name,
       description: data.description as string | undefined,
       argumentHint: data["argument-hint"] as string | undefined,
       disableModelInvocation,
       ce_platforms,
+      requires,
       sourceDir: path.dirname(file),
       skillPath: file,
     })

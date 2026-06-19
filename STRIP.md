@@ -53,6 +53,12 @@ cherry-pick surface).
   carrying a `requires:` capability block) so CI is deterministic.
 - `scripts/smoke-test.ts` — the two-path engine-liveness smoke test (ingest +
   convert to OpenCode, Codex fallback). See README.
+- **`--to hermes` target (VHS-20)** — the owned Hermes output adapter (the one
+  target CE never shipped): `src/converters/claude-to-hermes.ts`,
+  `src/targets/hermes.ts`, `src/types/hermes.ts`, `resolveHermesHome`, and the
+  additive `ClaudeSkill.requires` parser field. The capability→affordance mapping
+  and gap log live in [`HERMES-MAPPING.md`](HERMES-MAPPING.md); the smoke test
+  gained a Hermes path.
 
 ## Known retained entanglement (filed, not rewritten)
 

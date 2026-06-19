@@ -20,3 +20,16 @@ export function resolveCodexHome(value: unknown): string {
   const defaultPath = process.env.CODEX_HOME?.trim() || path.join(os.homedir(), ".codex")
   return resolveTargetHome(value, path.resolve(expandHome(defaultPath)))
 }
+
+/**
+ * Resolve the Hermes profile home (contract §1 — never hardcoded). Precedence:
+ * `--hermes-home` flag → `$HERMES_HOME` → `~/.hermes`. Mirrors `resolveCodexHome`
+ * exactly: both the explicit flag and the env-var default are `expandHome`-d so
+ * `~`-prefixed values resolve on POSIX and Windows; empty/whitespace
+ * `HERMES_HOME` falls back to the default via the shared `.trim() || default`
+ * guard (Decision D6).
+ */
+export function resolveHermesHome(value: unknown): string {
+  const defaultPath = process.env.HERMES_HOME?.trim() || path.join(os.homedir(), ".hermes")
+  return resolveTargetHome(value, path.resolve(expandHome(defaultPath)))
+}

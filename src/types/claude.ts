@@ -50,6 +50,12 @@ export type ClaudeSkill = {
   argumentHint?: string
   disableModelInvocation?: boolean
   ce_platforms?: string[]
+  /**
+   * Raw, harness-neutral `requires:` block as parsed from frontmatter (Decision
+   * D2, VHS-20). Carried verbatim so target adapters (e.g. Hermes) can apply
+   * their own capability mapping; the inherited converters ignore it.
+   */
+  requires?: Record<string, unknown>
   sourceDir: string
   skillPath: string
 }
